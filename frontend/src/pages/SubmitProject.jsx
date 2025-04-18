@@ -49,13 +49,13 @@ function SubmitProject() {
       // Clear form
       setForm({
         team_id: "",
-        title: "",
-        description: "",
-        image_url: "",
-        video_url: "",
-        github_url: "",
-        live_demo_url: "",
-        members: "",
+        Project_Title: "",
+        Project_Description: "",
+        Image_url: "",
+        Video_url: "",
+        Github_url: "",
+        Live_demo_url: "",
+        Members: "",
         building: ""
       });
       setNewTeamName("");
@@ -67,7 +67,7 @@ function SubmitProject() {
 
     } catch (err) {
       alert("❌ Submission failed");
-      console.error(err);
+      console.error("Submission error:", err.response?.data || err.message);
     } finally {
       setLoading(false);
     }
@@ -121,14 +121,13 @@ function SubmitProject() {
             type="text"
             name={field}
             placeholder={field.replace(/_/g, " ")}
-            value={form[field]}
+            value={form[field] || ""}
             onChange={handleChange}
             className="p-2 rounded border border-gray-300"
             required
           />
         ))}
 
-        {/* Building Select */}
         <select
           name="building"
           value={form.building}
@@ -141,7 +140,6 @@ function SubmitProject() {
           <option value="Building 2">Building 2</option>
         </select>
 
-        {/* Submit Button */}
         <button
           type="submit"
           className="bg-green-700 text-white px-4 py-2 rounded"
@@ -151,7 +149,6 @@ function SubmitProject() {
         </button>
       </form>
 
-      {/* --- Live Preview --- */}
       <div className="max-w-2xl mx-auto mt-10 text-left bg-white text-black p-6 rounded shadow">
         <h3 className="text-xl font-bold mb-2">🧪 Live Preview</h3>
         <p><strong>Title:</strong> {form.title}</p>
@@ -159,14 +156,17 @@ function SubmitProject() {
         <p><strong>Team:</strong> {teamMode === "new" ? newTeamName : teams.find(t => t.id === parseInt(form.team_id))?.name || "None"}</p>
         <p><strong>Members:</strong> {form.members}</p>
         <p><strong>Building:</strong> {form.building}</p>
-        {form.image_url && <img src={form.image_url} alt="Preview" className="w-full my-4 rounded" />}
-        {form.video_url && (
-          <video controls className="w-full mb-4">
-            <source src={form.video_url} />
-          </video>
+        {form.Image_url && <img src={form.Image_url} alt="Preview" className="w-full my-4 rounded" />}
+        {form.Video_url && (
+          <iframe
+            src={form.Video_url.replace("watch?v=", "embed/")}
+            className="w-full h-64 mb-4 rounded"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
         )}
-        <p><strong>GitHub:</strong> <a href={form.github_url} className="text-blue-600 underline" target="_blank" rel="noreferrer">{form.github_url}</a></p>
-        <p><strong>Live Demo:</strong> <a href={form.live_demo_url} className="text-blue-600 underline" target="_blank" rel="noreferrer">{form.live_demo_url}</a></p>
+        <p><strong>GitHub:</strong> <a href={form.Github_url} className="text-blue-600 underline" target="_blank" rel="noreferrer">{form.Github_url}</a></p>
+        <p><strong>Live Demo:</strong> <a href={form.Live_demo_url} className="text-blue-600 underline" target="_blank" rel="noreferrer">{form.Live_demo_url}</a></p>
       </div>
     </div>
   );

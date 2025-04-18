@@ -36,6 +36,7 @@ class Feedback(FeedbackBase):
 
 
 # --- Project ---
+
 class ProjectBase(BaseModel):
     title: str
     description: str
@@ -54,6 +55,8 @@ class Project(ProjectBase):
     votes: int
     team_id: int
     feedbacks: List[Feedback] = []
+    building: Optional[str] = None   # ✅ ADD THIS
+    members: Optional[str] = None    # ✅ ADD THIS
 
     class Config:
         orm_mode = True
