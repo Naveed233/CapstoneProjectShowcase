@@ -1,145 +1,87 @@
-import { useEffect, useState } from "react";
-import axios from "../api/axios";
+// File: frontend/src/pages/SubmitProject.jsx
 
-function SubmitProject() {
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+
+const SubmitProject = () => {
   const [form, setForm] = useState({
-    team_id: "",
-    title: "",
-    description: "",
-    image_url: "",
-    video_url: "",
-    github_url: "",
-    live_demo_url: "",
-    members: "",
-    building: ""
+    title: '',
+    description: '',
+    image_url: '',
+    video_url: '',
+    github_url: '',
+    live_demo_url: '',
+    members: '',
+    building: '',
+    team_id: ''
   });
 
   const [teams, setTeams] = useState([]);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    axios.get("/teams")
-      .then((res) => setTeams(res.data))
-      .catch((err) => console.error("Failed to load teams:", err));
+    axios.get('https://capstoneprojectshowcase.onrender.com/teams')
+      .then(res => setTeams(res.data))
+      .catch(err => console.error('Error fetching teams:', err));
   }, []);
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     try {
-      await axios.post("/projects", form);
-      alert("✅ Project submitted!");
-      setForm({
-        team_id: "",
-        title: "",
-        description: "",
-        image_url: "",
-        video_url: "",
-        github_url: "",
-        live_demo_url: "",
-        members: "",
-        building: ""
-      });
+      const res = await axios.post('https://capstoneprojectshowcase.onrender.com/projects', form);
+      alert('✅ Project submitted successfully!');
+      console.log(res.data);
     } catch (err) {
-      alert("❌ Submission failed");
-      console.error(err);
-    } finally {
-      setLoading(false);
+      console.error('❌ Submission failed:', err);
+      alert('Error submitting project');
     }
   };
 
   return (
-    <div className="bg-pink-500 min-h-screen text-lime-300 px-10 py-12 font-[Comic_Sans_MS]">
-      <h2 className="text-3xl mb-6 font-bold text-center">Submit Your Project</h2>
+    <form onSubmit={handleSubmit} className="p-6 space-y-4 max-w-xl mx-auto bg-white shadow-lg rounded">
+      <h2 className="text-xl font-bold text-center">Submit Your Project</h2>
 
-      {/* --- Form --- */}
-      <form
-        onSubmit={handleSubmit}
-        className="grid gap-4 max-w-2xl mx-auto text-left text-black bg-white p-6 rounded shadow"
-      >
-        {/* Team Select */}
-        <select
-          name="team_id"
-          value={form.team_id}
-          onChange={handleChange}
-          className="p-2 rounded"
-          required
-        >
-          <option value="">Select a team</option>
-          {teams.map((team) => (
-            <option key={team.id} value={team.id}>
-              {team.name}
-            </option>
-          ))}
-        </select>
+      {Object.entries(form).map(([key, value]) => (
+        key === 'team_id' ? (
+          <div key={key}>
+            <label className="block mb-1 font-medium">Select Team</label>
+            <select
+              name="team_id"
+              value={form.team_id}
+              onChange={handleChange}
+              className="w-full border p-2 rounded"
+              required
+            >
+              <option value="">-- Select a Team --</option>
+              {teams.map(team => (
+                <option key={team.id} value={team.id}>{team.name}</option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div key={key}>
+            <label className="block mb-1 font-medium">{key.replace('_', ' ')}</label>
+            <input
+              type="text"
+              name={key}
+              value={value}
+              onChange={handleChange}
+              className="w-full border p-2 rounded"
+              required={key !== 'image_url' && key !== 'video_url' && key !== 'live_demo_url'}
+            />
+          </div>
+        )
+      ))}
 
-        {/* Input fields */}
-        {[
-          "title",
-          "description",
-          "image_url",
-          "video_url",
-          "github_url",
-          "live_demo_url",
-          "members",
-        ].map((field) => (
-          <input
-            key={field}
-            type="text"
-            name={field}
-            placeholder={field.replace(/_/g, " ")}
-            value={form[field]}
-            onChange={handleChange}
-            className="p-2 rounded border border-gray-300"
-            required
-          />
-        ))}
-
-        {/* Building Select */}
-        <select
-          name="building"
-          value={form.building}
-          onChange={handleChange}
-          className="p-2 rounded"
-          required
-        >
-          <option value="">Select Building</option>
-          <option value="Building 1">Building 1</option>
-          <option value="Building 2">Building 2</option>
-        </select>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          className="bg-green-700 text-white px-4 py-2 rounded"
-          disabled={loading}
-        >
-          {loading ? "Submitting..." : "Submit"}
-        </button>
-      </form>
-
-      {/* --- Live Preview --- */}
-      <div className="max-w-2xl mx-auto mt-10 text-left bg-white text-black p-6 rounded shadow">
-        <h3 className="text-xl font-bold mb-2">🧪 Live Preview</h3>
-        <p><strong>Title:</strong> {form.title}</p>
-        <p><strong>Description:</strong> {form.description}</p>
-        <p><strong>Team:</strong> {teams.find(t => t.id === parseInt(form.team_id))?.name || "None"}</p>
-        <p><strong>Members:</strong> {form.members}</p>
-        <p><strong>Building:</strong> {form.building}</p>
-        {form.image_url && <img src={form.image_url} alt="Preview" className="w-full my-4 rounded" />}
-        {form.video_url && (
-          <video controls className="w-full mb-4">
-            <source src={form.video_url} />
-          </video>
-        )}
-        <p><strong>GitHub:</strong> <a href={form.github_url} className="text-blue-600 underline" target="_blank" rel="noreferrer">{form.github_url}</a></p>
-        <p><strong>Live Demo:</strong> <a href={form.live_demo_url} className="text-blue-600 underline" target="_blank" rel="noreferrer">{form.live_demo_url}</a></p>
-      </div>
-    </div>
+      <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+        Submit Project
+      </button>
+    </form>
   );
-}
+};
 
 export default SubmitProject;
