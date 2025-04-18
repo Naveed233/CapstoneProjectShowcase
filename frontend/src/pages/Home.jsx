@@ -1,3 +1,5 @@
+// File: frontend/src/pages/Home.jsx
+
 import { useEffect, useState } from "react";
 import axios from "../api/axios";
 import { useNavigate } from "react-router-dom";
@@ -23,10 +25,7 @@ function Home() {
 
   const filtered = filter === "All"
     ? projects
-    : projects.filter((p) => {
-        if (filter === "Building 1") return p.team?.name?.includes("1");
-        if (filter === "Building 2") return p.team?.name?.includes("2");
-      });
+    : projects.filter((p) => p.building === filter);
 
   const handleVote = async (projectId) => {
     try {
@@ -37,6 +36,26 @@ function Home() {
     } catch (e) {
       alert("You’ve already voted.");
     }
+  };
+
+  const getEmbeddedVideo = (url) => {
+    if (!url) return null;
+    if (url.includes("youtube.com/watch")) {
+      const embedUrl = url.replace("watch?v=", "embed/");
+      return <iframe src={embedUrl} className="w-full h-64 mb-2 rounded" allowFullScreen />;
+    }
+    if (url.includes("youtu.be/")) {
+      const videoId = url.split("youtu.be/")[1];
+      return <iframe src={`https://www.youtube.com/embed/${videoId}`} className="w-full h-64 mb-2 rounded" allowFullScreen />;
+    }
+    if (url.includes("drive.google.com")) {
+      return <iframe src={url} className="w-full h-64 mb-2 rounded" allowFullScreen />;
+    }
+    return (
+      <video controls className="w-full mb-2">
+        <source src={url} />
+      </video>
+    );
   };
 
   return (
@@ -77,15 +96,11 @@ function Home() {
                 alt="project"
               />
             )}
-            {project.video_url && (
-              <video controls className="w-full mb-2">
-                <source src={project.video_url} />
-              </video>
-            )}
+            {getEmbeddedVideo(project.video_url)}
             <p className="text-sm text-gray-600 mb-2">Votes: {project.votes}</p>
-            <p className="text-sm italic mb-2">
-              Team: {project.team?.name || "Unknown"}
-            </p>
+            <p className="text-sm italic mb-1">Team: {project.team?.name || "Unknown"}</p>
+            <p className="text-sm italic mb-1">Members: {project.members || "N/A"}</p>
+            <p className="text-sm italic mb-2">Building: {project.building || "N/A"}</p>
             <div className="flex justify-between items-center">
               <button
                 onClick={() => navigate(`/project/${project.id}`)}

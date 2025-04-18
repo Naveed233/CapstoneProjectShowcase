@@ -18,7 +18,6 @@ class User(UserBase):
     class Config:
         orm_mode = True
 
-
 # --- Feedback ---
 class FeedbackBase(BaseModel):
     content: str
@@ -34,9 +33,7 @@ class Feedback(FeedbackBase):
     class Config:
         orm_mode = True
 
-
 # --- Project ---
-
 class ProjectBase(BaseModel):
     title: str
     description: str
@@ -45,7 +42,7 @@ class ProjectBase(BaseModel):
     github_url: Optional[str] = None
     live_demo_url: Optional[str] = None
     members: Optional[str] = None
-    building: Optional[str] = None  
+    building: Optional[str] = None
 
 class ProjectCreate(ProjectBase):
     team_id: int
@@ -55,8 +52,7 @@ class Project(ProjectBase):
     votes: int
     team_id: int
     feedbacks: List[Feedback] = []
-    building: Optional[str] = None   # ✅ ADD THIS
-    members: Optional[str] = None    # ✅ ADD THIS
+    team: Optional['Team']
 
     class Config:
         orm_mode = True
@@ -72,12 +68,9 @@ class TeamCreate(TeamBase):
 
 class Team(TeamBase):
     id: int
-    members: List['TeamMember'] = []
-    projects: List[Project] = []
 
     class Config:
         orm_mode = True
-
 
 # --- Team Member ---
 class TeamMemberBase(BaseModel):
@@ -94,7 +87,6 @@ class TeamMember(TeamMemberBase):
     class Config:
         orm_mode = True
 
-
 # --- Vote ---
 class Vote(BaseModel):
     id: int
@@ -104,6 +96,13 @@ class Vote(BaseModel):
     class Config:
         orm_mode = True
 
+# Optional: full Team view with nested fields
+class TeamWithDetails(TeamBase):
+    id: int
+    members: List['TeamMember'] = []
+    projects: List[Project] = []
 
-# For forward references
+    class Config:
+        orm_mode = True
+
 Team.update_forward_refs()
