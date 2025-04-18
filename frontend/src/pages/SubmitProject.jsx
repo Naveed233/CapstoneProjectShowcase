@@ -18,7 +18,7 @@ function SubmitProject() {
 
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [teamMode, setTeamMode] = useState("existing"); // 'existing' or 'new'
+  const [teamMode, setTeamMode] = useState("existing");
   const [newTeamName, setNewTeamName] = useState("");
 
   useEffect(() => {
@@ -36,17 +36,34 @@ function SubmitProject() {
     try {
       let selectedTeamId = form.team_id;
 
-      // If creating a new team
       if (teamMode === "new" && newTeamName.trim()) {
+        const existing = teams.find(t => t.name.toLowerCase() === newTeamName.trim().toLowerCase());
+        if (existing) {
+          alert("❌ Team already exists. Please select 'Existing Team' instead.");
+          setLoading(false);
+          return;
+        }
         const res = await axios.post("/teams", { name: newTeamName });
         selectedTeamId = res.data.id;
       }
 
-      const payload = { ...form, team_id: selectedTeamId };
+      const payload = {
+        ...form,
+        team_id: parseInt(selectedTeamId),
+        title: form["Project_Title"],
+        description: form["Project_Description"],
+        image_url: form["Image_url"],
+        video_url: form["Video_url"],
+        github_url: form["Github_url"],
+        live_demo_url: form["Live_demo_url"],
+        members: form["Members"]
+      };
+
+      console.log("Submitting payload:", payload);
+
       await axios.post("/projects", payload);
       alert("✅ Project submitted!");
 
-      // Clear form
       setForm({
         team_id: "",
         Project_Title: "",
@@ -61,7 +78,6 @@ function SubmitProject() {
       setNewTeamName("");
       setTeamMode("existing");
 
-      // Reload teams
       const refreshed = await axios.get("/teams");
       setTeams(refreshed.data);
 
@@ -81,7 +97,6 @@ function SubmitProject() {
         onSubmit={handleSubmit}
         className="grid gap-4 max-w-2xl mx-auto text-left text-black bg-white p-6 rounded shadow"
       >
-        {/* --- Team Selection Mode --- */}
         <div className="flex gap-4">
           <button type="button" onClick={() => setTeamMode("existing")}
             className={`px-3 py-1 rounded ${teamMode === "existing" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Existing Team</button>
@@ -89,7 +104,6 @@ function SubmitProject() {
             className={`px-3 py-1 rounded ${teamMode === "new" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>New Team</button>
         </div>
 
-        {/* --- Team Select or Input --- */}
         {teamMode === "new" ? (
           <input
             type="text"
@@ -114,8 +128,7 @@ function SubmitProject() {
           </select>
         )}
 
-        {/* Input fields */}
-        {["title", "description", "image_url", "video_url", "github_url", "live_demo_url", "members"].map((field) => (
+        {["Project_Title", "Project_Description", "Image_url", "Video_url", "Github_url", "Live_demo_url", "Members"].map((field) => (
           <input
             key={field}
             type="text"
@@ -151,10 +164,10 @@ function SubmitProject() {
 
       <div className="max-w-2xl mx-auto mt-10 text-left bg-white text-black p-6 rounded shadow">
         <h3 className="text-xl font-bold mb-2">🧪 Live Preview</h3>
-        <p><strong>Title:</strong> {form.title}</p>
-        <p><strong>Description:</strong> {form.description}</p>
+        <p><strong>Title:</strong> {form["Project_Title"]}</p>
+        <p><strong>Description:</strong> {form["Project_Description"]}</p>
         <p><strong>Team:</strong> {teamMode === "new" ? newTeamName : teams.find(t => t.id === parseInt(form.team_id))?.name || "None"}</p>
-        <p><strong>Members:</strong> {form.members}</p>
+        <p><strong>Members:</strong> {form.Members}</p>
         <p><strong>Building:</strong> {form.building}</p>
         {form.Image_url && <img src={form.Image_url} alt="Preview" className="w-full my-4 rounded" />}
         {form.Video_url && (

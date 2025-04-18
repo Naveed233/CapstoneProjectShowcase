@@ -2,16 +2,15 @@
 
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
-from database import SessionLocal, engine
-import models, schemas
-from fastapi.middleware.cors import CORSMiddleware
-import os
+from backend.app.database import SessionLocal, engine
+from backend.app import schemas
 
-if os.getenv("RESET_DB", "false") == "true":
-    models.Base.metadata.drop_all(bind=engine)
-    models.Base.metadata.create_all(bind=engine)
+from fastapi.middleware.cors import CORSMiddleware
+
+from backend.app import models
 
 models.Base.metadata.create_all(bind=engine)
+
 app = FastAPI()
 
 # Allow frontend access
@@ -115,10 +114,6 @@ def create_team(team: schemas.TeamCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_team)
     return db_team
-
-@app.get("/teams", response_model=list[schemas.Team])
-def get_teams(db: Session = Depends(get_db)):
-    return db.query(models.Team).all()
 
 
 @app.get("/teams/{team_id}", response_model=schemas.Team)
