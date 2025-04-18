@@ -17,6 +17,8 @@ const SubmitProject = () => {
   });
 
   const [teams, setTeams] = useState([]);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     axios.get('https://capstoneprojectshowcase.onrender.com/teams')
@@ -24,13 +26,33 @@ const SubmitProject = () => {
       .catch(err => console.error('Error fetching teams:', err));
   }, []);
 
+  const validateForm = () => {
+    const newErrors = {};
+    if (!form.title) newErrors.title = 'Title is required';
+    if (!form.description) newErrors.description = 'Description is required';
+    if (!form.team_id) newErrors.team_id = 'Team selection is required';
+    if (!form.building) newErrors.building = 'Building is required';
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    const { name, value, files } = e.target;
+
+    if (name === 'image_url' && files && files[0]) {
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result);
+      reader.readAsDataURL(files[0]);
+      setForm((prev) => ({ ...prev, [name]: URL.createObjectURL(files[0]) }));
+    } else {
+      setForm((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!validateForm()) return;
+
     try {
       const res = await axios.post('https://capstoneprojectshowcase.onrender.com/projects', form);
       alert('✅ Project submitted successfully!');
@@ -61,6 +83,19 @@ const SubmitProject = () => {
                 <option key={team.id} value={team.id}>{team.name}</option>
               ))}
             </select>
+            {errors.team_id && <p className="text-red-500 text-sm">{errors.team_id}</p>}
+          </div>
+        ) : key === 'image_url' ? (
+          <div key={key}>
+            <label className="block mb-1 font-medium">Upload Image</label>
+            <input
+              type="file"
+              name="image_url"
+              accept="image/*"
+              onChange={handleChange}
+              className="w-full border p-2 rounded"
+            />
+            {imagePreview && <img src={imagePreview} alt="Preview" className="mt-2 rounded h-32 object-contain" />}
           </div>
         ) : (
           <div key={key}>
@@ -71,8 +106,9 @@ const SubmitProject = () => {
               value={value}
               onChange={handleChange}
               className="w-full border p-2 rounded"
-              required={key !== 'image_url' && key !== 'video_url' && key !== 'live_demo_url'}
+              required={key !== 'video_url' && key !== 'live_demo_url' && key !== 'github_url'}
             />
+            {errors[key] && <p className="text-red-500 text-sm">{errors[key]}</p>}
           </div>
         )
       ))}
