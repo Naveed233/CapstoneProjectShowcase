@@ -18,7 +18,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal, engine, Base
-import models, schemas
+from . import models, schemas
 
 # 1) Load .env
 load_dotenv()
