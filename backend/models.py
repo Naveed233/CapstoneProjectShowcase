@@ -9,7 +9,7 @@ from sqlalchemy import (
     UniqueConstraint
 )
 from sqlalchemy.orm import relationship
-from database import Base
+from .database import Base
 
 
 class User(Base):
@@ -20,7 +20,7 @@ class User(Base):
     email            = Column(String, unique=True, nullable=False)
     profile_picture  = Column(String, nullable=True)
     role             = Column(String, default="student")
-
+    password_hash = Column(String, nullable=False)
     teams            = relationship("TeamMember", back_populates="user")
     votes            = relationship("Vote", back_populates="user")
 
