@@ -1,31 +1,50 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import axios from "../api/axios";
 
-const navItemClass = ({ isActive }) =>
-  `px-4 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
-    isActive
-      ? "bg-[#A50F26] text-white"
-      : "text-white hover:bg-white hover:text-[#C8102E]"
-  }`;
+export default function NavBar() {
+  const navigate = useNavigate();
+  const base     = "px-4 py-2 font-medium uppercase";
+  const active   = "text-white bg-red-600 rounded";
+  const inactive = "text-gray-800 hover:text-red-600";
 
-function Navbar() {
+  const handleLogout = async () => {
+    await axios.post("/logout");
+    navigate("/login");
+  };
+
   return (
-    <nav className="bg-[#C8102E] shadow-md p-4 flex justify-between items-center">
-      <div className="text-xl font-bold text-white">
-        TSBC Python Capstone Showcase
-      </div>
-      <div className="flex space-x-4">
-        <NavLink to="/" className={navItemClass}>
-          Home
-        </NavLink>
-        <NavLink to="/submit" className={navItemClass}>
-          Submit
-        </NavLink>
-        <NavLink to="/vote" className={navItemClass}>
-          Vote
-        </NavLink>
-      </div>
+    <nav className="bg-gray-100 shadow-md">
+      <ul className="max-w-6xl mx-auto flex space-x-4 p-4">
+        {[
+          { to: "/",        label: "Home"    },
+          { to: "/projects",label: "Projects"},
+          { to: "/my-team", label: "My Team" },
+          { to: "/profile", label: "Profile" },
+          { to: "/submit",  label: "Submit"  },  // ← your submit form
+          { to: "/vote",    label: "Vote"    },
+        ].map((link) => (
+          <li key={link.to}>
+            <NavLink
+              to={link.to}
+              end={link.to === "/"}
+              className={({ isActive }) =>
+                `${base} ${isActive ? active : inactive}`
+              }
+            >
+              {link.label}
+            </NavLink>
+          </li>
+        ))}
+
+        <li className="ml-auto">
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 font-medium uppercase text-gray-800 hover:text-red-600"
+          >
+            Logout
+          </button>
+        </li>
+      </ul>
     </nav>
   );
 }
-
-export default Navbar;

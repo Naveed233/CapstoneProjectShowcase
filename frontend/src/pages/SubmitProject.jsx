@@ -1,188 +1,214 @@
 // File: frontend/src/pages/SubmitProject.jsx
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "../api/axios";
+import ReactMarkdown from "react-markdown";
 
-function SubmitProject() {
+export default function SubmitProject() {
   const [form, setForm] = useState({
-    team_id: "",
     title: "",
+    summary: "",
     description: "",
-    image_url: "",
-    video_url: "",
-    github_url: "",
-    live_demo_url: "",
-    members: "",
-    building: ""
+    building: "",
+    tags: "",
+    difficulty: "Beginner",
+    repoUrl: "",
+    branch: "main",
+    demoUrl: "",
+    videoUrl: "",
   });
-
-  const [teams, setTeams] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [teamMode, setTeamMode] = useState("existing");
-  const [newTeamName, setNewTeamName] = useState("");
+  const [thumbnail, setThumbnail] = useState(null);
+  const [assets, setAssets]         = useState([]);
+  const [ciBadge, setCiBadge]       = useState(null);
+  const [oneWord, setOneWord]       = useState("");
+  const [bug, setBug]               = useState("");
+  const [nextSkill, setNextSkill]   = useState("");
+  const [newVersionDesc, setNewVersionDesc] = useState("");
+  const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    axios.get("/teams")
-      .then((res) => setTeams(res.data))
-      .catch((err) => console.error("Failed to load teams:", err));
+    // TODO: fetch existing history for a project
+    // axios.get("/projects/1/history").then(res => setHistory(res.data));
   }, []);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((f) => ({ ...f, [name]: value }));
+  };
+
+  const handleFile = (setter) => (e) => {
+    const files = e.target.files;
+    if (setter === setAssets) {
+      setter(Array.from(files));
+    } else {
+      setter(files[0]);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    const fd = new FormData();
+    Object.entries(form).forEach(([k, v]) => fd.append(k, v));
+    if (thumbnail) fd.append("thumbnail", thumbnail);
+    assets.forEach((f) => fd.append("assets", f));
+    if (ciBadge) fd.append("ciBadge", ciBadge);
+    fd.append("oneWord", oneWord);
+    fd.append("bug", bug);
+    fd.append("nextSkill", nextSkill);
+    fd.append("newVersionDesc", newVersionDesc);
 
     try {
-      let selectedTeamId = form.team_id;
-
-      if (teamMode === "new" && newTeamName.trim()) {
-        const existing = teams.find(t => t.name.toLowerCase() === newTeamName.trim().toLowerCase());
-        if (existing) {
-          alert("❌ Team already exists. Please select 'Existing Team' instead.");
-          setLoading(false);
-          return;
-        }
-        const res = await axios.post("/teams", { name: newTeamName });
-        selectedTeamId = res.data.id;
-      }
-
-      const payload = {
-        ...form,
-        team_id: parseInt(selectedTeamId),
-        title: form["Project_Title"],
-        description: form["Project_Description"],
-        image_url: form["Image_url"],
-        video_url: form["Video_url"],
-        github_url: form["Github_url"],
-        live_demo_url: form["Live_demo_url"],
-        members: form["Members"]
-      };
-
-      console.log("Submitting payload:", payload);
-
-      await axios.post("/projects", payload);
-      alert("✅ Project submitted!");
-
-      setForm({
-        team_id: "",
-        Project_Title: "",
-        Project_Description: "",
-        Image_url: "",
-        Video_url: "",
-        Github_url: "",
-        Live_demo_url: "",
-        Members: "",
-        building: ""
+      await axios.post("/projects", fd, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-      setNewTeamName("");
-      setTeamMode("existing");
-
-      const refreshed = await axios.get("/teams");
-      setTeams(refreshed.data);
-
-    } catch (err) {
+      alert("✅ Submitted!");
+      // TODO: refresh history
+    } catch {
       alert("❌ Submission failed");
-      console.error("Submission error:", err.response?.data || err.message);
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
-    <div className="bg-pink-500 min-h-screen text-lime-300 px-10 py-12 font-[Comic_Sans_MS]">
-      <h2 className="text-3xl mb-6 font-bold text-center">Submit Your Project</h2>
+    <div className="px-4 py-10 max-w-3xl mx-auto">
+      <h1 className="text-3xl font-bold mb-6">Submit Your Project</h1>
+      <form onSubmit={handleSubmit} className="space-y-6">
 
-      <form
-        onSubmit={handleSubmit}
-        className="grid gap-4 max-w-2xl mx-auto text-left text-black bg-white p-6 rounded shadow"
-      >
-        <div className="flex gap-4">
-          <button type="button" onClick={() => setTeamMode("existing")}
-            className={`px-3 py-1 rounded ${teamMode === "existing" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>Existing Team</button>
-          <button type="button" onClick={() => setTeamMode("new")}
-            className={`px-3 py-1 rounded ${teamMode === "new" ? "bg-blue-600 text-white" : "bg-gray-200"}`}>New Team</button>
+        {/* 1. Metadata */}
+        <div className="space-y-2">
+          <label>Title *</label>
+          <input
+            name="title" value={form.title} onChange={handleChange}
+            required className="w-full p-2 border rounded"
+          />
+
+          <label>Brief Summary *</label>
+          <input
+            name="summary" value={form.summary} onChange={handleChange}
+            required className="w-full p-2 border rounded"
+          />
+
+          <label>Detailed Description (Markdown)</label>
+          <textarea
+            name="description" rows={6} value={form.description}
+            onChange={handleChange} className="w-full p-2 border rounded"
+          />
+          <div className="border p-2 rounded bg-gray-50">
+            <h2 className="font-medium">Preview:</h2>
+            <ReactMarkdown>{form.description}</ReactMarkdown>
+          </div>
+
+          <label>Category/Building</label>
+          <select
+            name="building" value={form.building}
+            onChange={handleChange} className="w-full p-2 border rounded"
+          >
+            <option value="">Select...</option>
+            <option>Building 1</option>
+            <option>Building 2</option>
+          </select>
+
+          <label>Tags (comma‑separated)</label>
+          <input
+            name="tags" value={form.tags} onChange={handleChange}
+            className="w-full p-2 border rounded"
+          />
+
+          <label>Difficulty Level</label>
+          <select
+            name="difficulty" value={form.difficulty}
+            onChange={handleChange} className="w-full p-2 border rounded"
+          >
+            <option>Beginner</option>
+            <option>Intermediate</option>
+            <option>Advanced</option>
+          </select>
         </div>
 
-        {teamMode === "new" ? (
+        {/* 2. Code & Demo Links */}
+        <div className="space-y-2">
+          <label>Repository URL</label>
           <input
-            type="text"
-            placeholder="Enter new team name"
-            value={newTeamName}
-            onChange={(e) => setNewTeamName(e.target.value)}
-            className="p-2 rounded border border-gray-300"
-            required
+            name="repoUrl" value={form.repoUrl} onChange={handleChange}
+            className="w-full p-2 border rounded"
           />
-        ) : (
-          <select
-            name="team_id"
-            value={form.team_id}
-            onChange={handleChange}
-            className="p-2 rounded"
-            required
-          >
-            <option value="">Select a team</option>
-            {teams.map((team) => (
-              <option key={team.id} value={team.id}>{team.name}</option>
+
+          <label>Branch</label>
+          <input
+            name="branch" value={form.branch} onChange={handleChange}
+            className="w-full p-2 border rounded"
+          />
+
+          <label>Live Demo URL</label>
+          <input
+            name="demoUrl" value={form.demoUrl} onChange={handleChange}
+            className="w-full p-2 border rounded"
+          />
+
+          <label>Video Preview URL</label>
+          <input
+            name="videoUrl" value={form.videoUrl} onChange={handleChange}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        {/* 3. File Uploads */}
+        <div className="space-y-2">
+          <label>Project Snapshot</label>
+          <input type="file" accept="image/*" onChange={handleFile(setThumbnail)} />
+
+          <label>Additional Assets</label>
+          <input type="file" multiple onChange={handleFile(setAssets)} />
+
+          <label>CI Badge (optional)</label>
+          <input type="file" onChange={handleFile(setCiBadge)} />
+        </div>
+
+        {/* 4. Fun Prompts */}
+        <div className="space-y-2">
+          <label>“In one word, my project is…”</label>
+          <input
+            value={oneWord} onChange={(e) => setOneWord(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+          <label>“The trickiest bug I squashed was…”</label>
+          <input
+            value={bug} onChange={(e) => setBug(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+          <label>“Next Python skill I’m tackling is…”</label>
+          <input
+            value={nextSkill} onChange={(e) => setNextSkill(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+        </div>
+
+        {/* 5. Versioning & Updates */}
+        <div className="space-y-2">
+          <label>Submit New Version (changelog)</label>
+          <textarea
+            rows={3} value={newVersionDesc}
+            onChange={(e) => setNewVersionDesc(e.target.value)}
+            className="w-full p-2 border rounded"
+          />
+          <button type="button" className="px-4 py-2 bg-blue-600 text-white rounded">
+            Submit New Version
+          </button>
+
+          <h3 className="font-medium">Revision History</h3>
+          <ul className="list-disc pl-5">
+            {history.map((rev, i) => (
+              <li key={i}>{rev.date}: {rev.changelog}</li>
             ))}
-          </select>
-        )}
-
-        {["Project_Title", "Project_Description", "Image_url", "Video_url", "Github_url", "Live_demo_url", "Members"].map((field) => (
-          <input
-            key={field}
-            type="text"
-            name={field}
-            placeholder={field.replace(/_/g, " ")}
-            value={form[field] || ""}
-            onChange={handleChange}
-            className="p-2 rounded border border-gray-300"
-            required
-          />
-        ))}
-
-        <select
-          name="building"
-          value={form.building}
-          onChange={handleChange}
-          className="p-2 rounded"
-          required
-        >
-          <option value="">Select Building</option>
-          <option value="Building 1">Building 1</option>
-          <option value="Building 2">Building 2</option>
-        </select>
+          </ul>
+        </div>
 
         <button
           type="submit"
-          className="bg-green-700 text-white px-4 py-2 rounded"
-          disabled={loading}
+          className="w-full py-3 bg-red-600 text-white font-bold rounded"
         >
-          {loading ? "Submitting..." : "Submit"}
+          Submit Project
         </button>
       </form>
-
-      <div className="max-w-2xl mx-auto mt-10 text-left bg-white text-black p-6 rounded shadow">
-        <h3 className="text-xl font-bold mb-2">🧪 Live Preview</h3>
-        <p><strong>Title:</strong> {form["Project_Title"]}</p>
-        <p><strong>Description:</strong> {form["Project_Description"]}</p>
-        <p><strong>Team:</strong> {teamMode === "new" ? newTeamName : teams.find(t => t.id === parseInt(form.team_id))?.name || "None"}</p>
-        <p><strong>Members:</strong> {form.Members}</p>
-        <p><strong>Building:</strong> {form.building}</p>
-        {form.Image_url && <img src={form.Image_url} alt="Preview" className="w-full my-4 rounded" />}
-        {form.Video_url && (
-          <iframe
-            src={form.Video_url.replace("watch?v=", "embed/")}
-            className="w-full h-64 mb-4 rounded"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        )}
-        <p><strong>GitHub:</strong> <a href={form.Github_url} className="text-blue-600 underline" target="_blank" rel="noreferrer">{form.Github_url}</a></p>
-        <p><strong>Live Demo:</strong> <a href={form.Live_demo_url} className="text-blue-600 underline" target="_blank" rel="noreferrer">{form.Live_demo_url}</a></p>
-      </div>
     </div>
   );
 }
-
-export default SubmitProject;

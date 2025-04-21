@@ -1,29 +1,33 @@
-# backend/main.py
+# File: backend/main.py
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Form, File, UploadFile
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 import models, schemas
-from fastapi.middleware.cors import CORSMiddleware
 import os
+import json
 
-if os.getenv("RESET_DB", "false") == "true":
-    models.Base.metadata.drop_all(bind=engine)
-    models.Base.metadata.create_all(bind=engine)
-
+# Reset logic omitted for brevity…
 models.Base.metadata.create_all(bind=engine)
+
 app = FastAPI()
 
-# Allow frontend access
+# CORS — you already have allow_origins=["*"], so dev is fine
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change to frontend domain on prod
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# DB Session
+# Serve uploads folder
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+# DB session dependency
 def get_db():
     db = SessionLocal()
     try:
@@ -32,107 +36,68 @@ def get_db():
         db.close()
 
 
-# --- Project Routes ---
 @app.post("/projects", response_model=schemas.Project)
-def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
-    db_project = models.Project(**project.dict())
-    db.add(db_project)
+async def create_project(
+    # 1. Metadata
+    title: str = Form(...),
+    summary: str = Form(...),
+    description: str = Form(...),
+    building: str = Form(...),
+    tags: str = Form(...),            # comma-separated
+    difficulty: str = Form(...),      # “Beginner” / …
+    # 2. Code & links
+    repo_url: str = Form(...),
+    branch: str    = Form(...),
+    live_demo_url: str = Form(None),
+    video_url: str     = Form(None),
+    # 4. Fun prompts
+    one_word: str     = Form(None),
+    bug: str          = Form(None),
+    next_skill: str   = Form(None),
+    # 5. Versioning
+    new_version_desc: str = Form(None),
+
+    # 3. File uploads
+    thumbnail: UploadFile = File(None),
+    assets: list[UploadFile] = File(None),
+    ci_badge: UploadFile = File(None),
+
+    db: Session = Depends(get_db),
+):
+    # Save files to disk and collect URLs
+    def save_upload(file: UploadFile):
+        path = f"uploads/{file.filename}"
+        with open(path, "wb") as f:
+            f.write(file.file.read())
+        return f"/uploads/{file.filename}"
+
+    thumb_url = save_upload(thumbnail) if thumbnail else None
+    asset_urls = [save_upload(f) for f in (assets or [])]
+    ci_url = save_upload(ci_badge) if ci_badge else None
+
+    # Create the Project record
+    proj = models.Project(
+        title=title,
+        summary=summary,
+        description=description,
+        building=building,
+        tags=tags,
+        difficulty=difficulty,
+        repo_url=repo_url,
+        branch=branch,
+        live_demo_url=live_demo_url,
+        video_url=video_url,
+        one_word=one_word,
+        bug=bug,
+        next_skill=next_skill,
+        new_version_desc=new_version_desc,
+        thumbnail_url=thumb_url,
+        asset_urls=json.dumps(asset_urls),  # store as JSON text
+        ci_badge_url=ci_url,
+        votes=0,
+    )
+
+    db.add(proj)
     db.commit()
-    db.refresh(db_project)
-    return db_project
-
-
-@app.get("/projects", response_model=list[schemas.Project])
-def get_projects(db: Session = Depends(get_db)):
-    return db.query(models.Project).all()
-
-
-@app.get("/projects/{project_id}", response_model=schemas.Project)
-def get_project(project_id: int, db: Session = Depends(get_db)):
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
-
-
-# --- Feedback Routes ---
-@app.post("/projects/{project_id}/feedback", response_model=schemas.Feedback)
-def add_feedback(project_id: int, feedback: schemas.FeedbackCreate, db: Session = Depends(get_db)):
-    db_feedback = models.Feedback(**feedback.dict(), project_id=project_id)
-    db.add(db_feedback)
-    db.commit()
-    db.refresh(db_feedback)
-    return db_feedback
-
-
-@app.get("/projects/{project_id}/feedback", response_model=list[schemas.Feedback])
-def get_feedback(project_id: int, db: Session = Depends(get_db)):
-    return db.query(models.Feedback).filter(models.Feedback.project_id == project_id).all()
-
-
-# --- Vote Route ---
-@app.post("/projects/{project_id}/vote")
-def vote_project(project_id: int, user_id: int, db: Session = Depends(get_db)):
-    existing_vote = db.query(models.Vote).filter(models.Vote.user_id == user_id).first()
-    if existing_vote:
-        raise HTTPException(status_code=400, detail="User has already voted")
-
-    vote = models.Vote(user_id=user_id, project_id=project_id)
-    db.add(vote)
-
-    project = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    project.votes += 1
-
-    db.commit()
-    return {"message": "Vote added successfully", "votes": project.votes}
-
-
-# --- User Routes ---
-@app.post("/users", response_model=schemas.User)
-def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    db_user = models.User(**user.dict())
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-
-@app.get("/users/{user_id}", response_model=schemas.User)
-def get_user(user_id: int, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return user
-
-
-# --- Team Routes ---
-@app.post("/teams", response_model=schemas.Team)
-def create_team(team: schemas.TeamCreate, db: Session = Depends(get_db)):
-    db_team = models.Team(**team.dict())
-    db.add(db_team)
-    db.commit()
-    db.refresh(db_team)
-    return db_team
-
-@app.get("/teams", response_model=list[schemas.Team])
-def get_teams(db: Session = Depends(get_db)):
-    return db.query(models.Team).all()
-
-
-@app.get("/teams/{team_id}", response_model=schemas.Team)
-def get_team(team_id: int, db: Session = Depends(get_db)):
-    team = db.query(models.Team).filter(models.Team.id == team_id).first()
-    if not team:
-        raise HTTPException(status_code=404, detail="Team not found")
-    return team
-
-
-@app.post("/teams/{team_id}/add-member", response_model=schemas.TeamMember)
-def add_team_member(team_id: int, member: schemas.TeamMemberCreate, db: Session = Depends(get_db)):
-    db_member = models.TeamMember(team_id=team_id, user_id=member.user_id)
-    db.add(db_member)
-    db.commit()
-    db.refresh(db_member)
-    return db_member
+    db.refresh(proj)
+    return proj

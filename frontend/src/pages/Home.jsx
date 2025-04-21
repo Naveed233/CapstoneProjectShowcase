@@ -1,122 +1,146 @@
 // File: frontend/src/pages/Home.jsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "../api/axios";
 import { useNavigate } from "react-router-dom";
+import ImageGallery from "react-image-gallery";
+import "react-image-gallery/styles/css/image-gallery.css";
 
 function Home() {
   const [projects, setProjects] = useState([]);
-  const [filter, setFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const projectsRef = useRef(null);
 
   useEffect(() => {
     axios.get("/projects")
-      .then((res) => {
-        setProjects(res.data);
-        setLoading(false);
-      })
-      .catch(() => {
-        setError("Failed to load projects.");
-        setLoading(false);
-      });
+      .then(res => setProjects(res.data))
+      .catch(() => setError("Failed to load projects."))
+      .finally(() => setLoading(false));
   }, []);
 
-  const filtered = filter === "All"
-    ? projects
-    : projects.filter((p) => p.building === filter);
-
-  const handleVote = async (projectId) => {
-    try {
-      await axios.post(`/projects/${projectId}/vote`, { user_id: 1 });
-      setProjects(projects.map(p =>
-        p.id === projectId ? { ...p, votes: p.votes + 1 } : p
-      ));
-    } catch (e) {
-      alert("You’ve already voted.");
-    }
+  const scrollToProjects = () => {
+    projectsRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const getEmbeddedVideo = (url) => {
-    if (!url) return null;
-    if (url.includes("youtube.com/watch")) {
-      const embedUrl = url.replace("watch?v=", "embed/");
-      return <iframe src={embedUrl} className="w-full h-64 mb-2 rounded" allowFullScreen />;
+  const getMediaItems = (project) => {
+    const items = [];
+
+    // Handle multiple images if backend sends image_urls array,
+    // or fall back to single image_url string
+    if (project.image_urls && project.image_urls.length) {
+      project.image_urls.forEach(url =>
+        items.push({ original: url, thumbnail: url })
+      );
+    } else if (project.image_url) {
+      items.push({ original: project.image_url, thumbnail: project.image_url });
     }
-    if (url.includes("youtu.be/")) {
-      const videoId = url.split("youtu.be/")[1];
-      return <iframe src={`https://www.youtube.com/embed/${videoId}`} className="w-full h-64 mb-2 rounded" allowFullScreen />;
+
+    // If there's a video URL, embed it as its own slide
+    if (project.video_url) {
+      const embedUrl = project.video_url.includes("youtube")
+        ? project.video_url.replace("watch?v=", "embed/")
+        : project.video_url;
+
+      items.push({
+        original: embedUrl,
+        thumbnail: project.image_url || "",
+        renderItem: () => (
+          <div className="image-gallery-image">
+            <iframe
+              src={embedUrl}
+              width="100%"
+              height="300"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              title="Video"
+            />
+          </div>
+        ),
+      });
     }
-    if (url.includes("drive.google.com")) {
-      return <iframe src={url} className="w-full h-64 mb-2 rounded" allowFullScreen />;
-    }
-    return (
-      <video controls className="w-full mb-2">
-        <source src={url} />
-      </video>
-    );
+
+    return items;
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 text-[#C8102E] font-sans text-center px-4 py-10">
-      <h1 className="text-4xl font-extrabold mb-10">Capstone Projects</h1>
+    <div className="bg-gray-100 font-sans text-center">
 
-      <div className="flex justify-center gap-4 mb-10">
-        {["All", "Building 1", "Building 2"].map((b) => (
-          <button
-            key={b}
-            className={`px-6 py-2 rounded text-lg transition-all duration-200 ${
-              filter === b
-                ? "bg-[#C8102E] text-white"
-                : "bg-white text-[#C8102E] border border-[#C8102E]"
-            }`}
-            onClick={() => setFilter(b)}
-          >
-            {b}
-          </button>
-        ))}
-      </div>
+      {/* — Hero Section — */}
+      <section
+        id="home"
+        className="relative bg-gray-200 h-screen flex flex-col justify-center items-center px-4"
+      >
+        <h1 className="text-5xl font-extrabold mb-4">Welcome</h1>
+        <p className="text-lg mb-6">
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+        </p>
+        <button
+          onClick={scrollToProjects}
+          className="bg-gray-700 text-white px-6 py-3 rounded-lg uppercase tracking-wider hover:bg-gray-800 transition"
+        >
+          View Projects
+        </button>
+      </section>
 
-      {loading && <p className="text-lg font-medium">Loading...</p>}
-      {error && <p className="text-red-500">{error}</p>}
+      {/* — Latest Projects — */}
+      <section
+        id="projects"
+        ref={projectsRef}
+        className="py-16 px-4"
+      >
+        <h2 className="text-3xl font-bold mb-10">Latest Projects</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 justify-center">
-        {filtered.map((project) => (
-          <div
-            key={project.id}
-            className="bg-white text-black p-6 rounded shadow-lg max-w-sm mx-auto"
-          >
-            <h2 className="text-xl font-bold mb-2">{project.title}</h2>
-            <p className="mb-2">{project.description}</p>
-            {project.image_url && (
-              <img
-                src={project.image_url}
-                className="rounded mb-2 w-full h-[200px] object-cover"
-                alt="project"
+        {loading && <p className="text-lg font-medium">Loading...</p>}
+        {error   && <p className="text-red-500">{error}</p>}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {!loading && !error && projects.map(project => (
+            <div
+              key={project.id}
+              className="bg-white p-6 rounded-lg shadow-lg flex flex-col"
+            >
+              {/* slideshow */}
+              <ImageGallery
+                items={getMediaItems(project)}
+                showPlayButton={false}
+                showFullscreenButton={false}
               />
-            )}
-            {getEmbeddedVideo(project.video_url)}
-            <p className="text-sm text-gray-600 mb-2">Votes: {project.votes}</p>
-            <p className="text-sm italic mb-1">Team: {project.team?.name || "Unknown"}</p>
-            <p className="text-sm italic mb-1">Members: {project.members || "N/A"}</p>
-            <p className="text-sm italic mb-2">Building: {project.building || "N/A"}</p>
-            <div className="flex justify-between items-center">
+
+              <h3 className="text-xl font-bold mt-4">{project.title}</h3>
+              <p className="text-gray-700 mt-2 mb-4">
+                {project.description}
+              </p>
               <button
                 onClick={() => navigate(`/project/${project.id}`)}
-                className="text-blue-600 underline"
+                className="mt-auto text-red-600 underline"
               >
                 View Details
               </button>
-              <button
-                onClick={() => handleVote(project.id)}
-                className="bg-[#C8102E] text-white px-3 py-1 rounded"
-              >
-                Vote
-              </button>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+      </section>
+
+      {/* — About Section — */}
+      <div className="px-4 py-16 bg-gray-100 min-h-screen">
+        <h1 className="text-4xl font-bold mb-6 text-center">About This Showcase</h1>
+        <div className="max-w-3xl mx-auto text-lg text-gray-700 space-y-4">
+          <p>
+            The Capstone Project Showcase is a place for students to share their
+            final projects, get peer feedback, and build a portfolio of their work.
+          </p>
+          <p>
+            Browse through the latest submissions, learn from each other, and
+            celebrate the innovative solutions built during our boot camp.
+          </p>
+          <p>
+            If you have any questions or want to contribute, feel free to reach
+            out to the team via the “My Team” page.
+          </p>
+        </div>
       </div>
     </div>
   );

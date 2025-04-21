@@ -1,62 +1,81 @@
-// File: frontend/src/pages/ProjectDetail.jsx
-
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import axios from "../api/axios";
-import CommentSection from "../components/CommentSection";
+import ImageGallery from "react-image-gallery";
+import "react-image-gallery/styles/css/image-gallery.css";
 
-function ProjectDetail() {
-  const { id } = useParams();
-  const [project, setProject] = useState(null);
+export default function Projects() {
+  const [projects, setProjects] = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
-    axios.get(`/projects/${id}`).then((res) => {
-      setProject(res.data);
-    });
-  }, [id]);
+    axios.get("/projects")
+      .then(res => setProjects(res.data))
+      .catch(() => setError("Failed to load projects."))
+      .finally(() => setLoading(false));
+  }, []);
 
-  const getEmbeddedVideo = (url) => {
-    if (!url) return null;
-    if (url.includes("youtube.com/watch")) {
-      const embedUrl = url.replace("watch?v=", "embed/");
-      return <iframe src={embedUrl} className="w-full h-64 mb-4 rounded" allowFullScreen />;
+  const getMediaItems = (project) => {
+    const items = [];
+
+    // multiple images
+    if (project.image_urls?.length) {
+      project.image_urls.forEach(url =>
+        items.push({ original: url, thumbnail: url })
+      );
+    } else if (project.image_url) {
+      items.push({ original: project.image_url, thumbnail: project.image_url });
     }
-    if (url.includes("youtu.be/")) {
-      const videoId = url.split("youtu.be/")[1];
-      return <iframe src={`https://www.youtube.com/embed/${videoId}`} className="w-full h-64 mb-4 rounded" allowFullScreen />;
+
+    // optional video
+    if (project.video_url) {
+      const embed = project.video_url.replace("watch?v=", "embed/");
+      items.push({
+        original: embed,
+        thumbnail: project.image_url || "",
+        renderItem: () => (
+          <iframe
+            src={embed}
+            width="100%"
+            height="300"
+            frameBorder="0"
+            allowFullScreen
+            title="Video"
+          />
+        )
+      });
     }
-    if (url.includes("drive.google.com")) {
-      return <iframe src={url} className="w-full h-64 mb-4 rounded" allowFullScreen />;
-    }
-    return (
-      <video controls className="w-full mb-4">
-        <source src={url} />
-      </video>
-    );
+
+    return items;
   };
 
-  if (!project) return <p className="text-center p-10">Loading project...</p>;
+  if (loading) return <p className="p-4">Loading projects…</p>;
+  if (error)   return <p className="p-4 text-red-600">{error}</p>;
 
   return (
-    <div className="max-w-3xl mx-auto p-6 bg-white text-black rounded shadow">
-      <h1 className="text-3xl font-bold mb-2">{project.title}</h1>
-      <p className="mb-4">{project.description}</p>
-
-      {project.image_url && (
-        <img src={project.image_url} alt={project.title} className="mb-4 rounded" />
-      )}
-
-      {getEmbeddedVideo(project.video_url)}
-
-      <p className="text-sm text-gray-600 mb-1">Votes: {project.votes}</p>
-      <p className="text-sm text-gray-600 mb-1">Team: {project.team?.name || "Unknown"}</p>
-      <p className="text-sm text-gray-600 mb-1">Members: {project.members || "N/A"}</p>
-      <p className="text-sm text-gray-600 mb-4">Building: {project.building || "N/A"}</p>
-
-      {/* ✅ Comment Section */}
-      <CommentSection projectId={project.id} />
+    <div className="px-4 py-10 max-w-6xl mx-auto">
+      <h1 className="text-4xl font-bold mb-8 text-center">All Projects</h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {projects.map(project => (
+          <div key={project.id} className="bg-white rounded shadow p-6 flex flex-col">
+            <ImageGallery
+              items={getMediaItems(project)}
+              showPlayButton={false}
+              showFullscreenButton={false}
+            />
+            <h2 className="text-2xl font-semibold mt-4">{project.title}</h2>
+            <p className="text-gray-700 mt-2 mb-4 flex-1">{project.description}</p>
+            <button
+              onClick={() => navigate(`/project/${project.id}`)}
+              className="mt-auto text-red-600 underline"
+            >
+              View Details
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
-
-export default ProjectDetail;

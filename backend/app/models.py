@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
-from backend.app.database import Base
+from database import Base
 
 class User(Base):
     __tablename__ = 'users'
@@ -10,7 +10,7 @@ class User(Base):
     email = Column(String, unique=True, nullable=False)
     profile_picture = Column(String, nullable=True)
     role = Column(String, default="student")
-
+    password_hash = Column(String, nullable=False)
     teams = relationship("TeamMember", back_populates="user")
     votes = relationship("Vote", back_populates="user")
 

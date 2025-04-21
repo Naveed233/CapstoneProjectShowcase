@@ -1,49 +1,96 @@
-import { useEffect, useState } from "react";
+// File: frontend/src/pages/Vote.jsx
+
+import { useState, useEffect } from "react";
 import axios from "../api/axios";
 
-function Vote() {
-  const [projects, setProjects] = useState([]);
-  const [error, setError] = useState("");
-  const userId = localStorage.getItem("userId") || 1;
+export default function Vote() {
+  const [categories, setCategories] = useState([]);
+  const [projects,   setProjects]   = useState([]);
+  const [selectedCat, setSelectedCat] = useState("");
+  const [newCat,      setNewCat]      = useState("");
 
   useEffect(() => {
-    axios.get("/projects")
-      .then(res => setProjects(res.data))
-      .catch(() => setError("Failed to load projects."));
+    axios.get("/categories").then(r => setCategories(r.data));
+    axios.get("/projects").then(r => setProjects(r.data));
   }, []);
 
+  const addCategory = async () => {
+    if (!newCat.trim()) return;
+    const res = await axios.post("/categories", { name: newCat });
+    setCategories((c) => [...c, res.data]);
+    setNewCat("");
+  };
+
   const handleVote = async (projectId) => {
+    if (!selectedCat) return alert("Pick a category first");
     try {
-      await axios.post(`/projects/${projectId}/vote`, { user_id: userId });
-      setProjects(projects.map(p =>
-        p.id === projectId ? { ...p, votes: p.votes + 1 } : p
-      ));
-    } catch (e) {
-      alert("You’ve already voted or reached your vote limit.");
+      await axios.post(`/vote`, {
+        project_id: projectId,
+        category: selectedCat,
+      });
+      setProjects((p) =>
+        p.map((pr) =>
+          pr.id === projectId ? { ...pr, votes: pr.votes + 1 } : pr
+        )
+      );
+    } catch {
+      alert("You’ve already voted in this category.");
     }
   };
 
   return (
-    <div className="min-h-screen bg-pink-500 text-lime-300 font-bold font-[Comic_Sans_MS] text-center px-4 py-10">
-      <h1 className="text-4xl mb-10">Vote for Your Favorite Project!</h1>
-      {error && <p className="text-red-300">{error}</p>}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-        {projects.map(project => (
-          <div key={project.id} className="bg-white text-black p-6 rounded shadow-lg max-w-sm mx-auto">
-            <h2 className="text-2xl font-bold">{project.title}</h2>
-            <img src={project.image_url} className="my-3 rounded w-full h-[200px] object-cover" />
-            <p>{project.description}</p>
-            <p className="text-sm text-gray-600 my-2">Votes: {project.votes}</p>
-            <p className="text-sm italic mb-2">Team: {project.team?.name || "N/A"}</p>
-            <p className="text-xs text-gray-700 mb-2">Members: {project.members}</p>
-            <button onClick={() => handleVote(project.id)} className="bg-green-500 text-white px-4 py-2 rounded">
-              Vote!
+    <div className="px-4 py-10 max-w-6xl mx-auto">
+      <h1 className="text-3xl font-bold mb-6">Vote for Your Favorites</h1>
+
+      {/* Category Tabs */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        {categories.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => setSelectedCat(c.name)}
+            className={`px-4 py-2 rounded ${
+              selectedCat === c.name
+                ? "bg-red-600 text-white"
+                : "bg-gray-200 text-gray-800"
+            }`}
+          >
+            {c.name}
+          </button>
+        ))}
+        <input
+          value={newCat}
+          onChange={(e) => setNewCat(e.target.value)}
+          placeholder="+ Add category"
+          className="px-3 py-2 border rounded"
+        />
+        <button onClick={addCategory} className="px-3 py-2 bg-blue-600 text-white rounded">
+          Create
+        </button>
+      </div>
+
+      {/* Projects Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {projects.map((p) => (
+          <div key={p.id} className="bg-white shadow rounded p-4 flex flex-col">
+            <img
+              src={p.thumbnail_url || p.image_url}
+              alt={p.title}
+              className="h-40 object-cover rounded mb-4"
+            />
+            <h2 className="text-xl font-semibold">{p.title}</h2>
+            <p className="text-gray-700 flex-1">{p.summary}</p>
+            <p className="mt-2 font-medium">
+              Votes in “{selectedCat}”: {p.votes || 0}
+            </p>
+            <button
+              onClick={() => handleVote(p.id)}
+              className="mt-4 px-4 py-2 bg-red-600 text-white rounded"
+            >
+              Vote
             </button>
           </div>
         ))}
       </div>
     </div>
-  );
+);
 }
-
-export default Vote;
