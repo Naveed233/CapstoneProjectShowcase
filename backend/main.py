@@ -17,7 +17,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-from database import SessionLocal, engine, Base
+from .database import SessionLocal, engine, Base
 import models, schemas
 
 # 1) Load .env
