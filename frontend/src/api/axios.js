@@ -1,15 +1,13 @@
-// File: src/api/axios.js
-
 import axios from "axios";
 
-// Use .env value if defined, otherwise fall back to live backend
-const BASE_URL = import.meta.env.VITE_API_URL || "https://capstoneprojectshowcase.onrender.com";
-
 const instance = axios.create({
-  baseURL: BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: "https://capstoneprojectshowcase.onrender.com", // ← your Render URL
+});
+
+instance.interceptors.request.use((config) => {
+  const token = localStorage.getItem("accessToken");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
 });
 
 export default instance;
